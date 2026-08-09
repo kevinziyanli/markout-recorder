@@ -1,0 +1,32 @@
+name: record
+on:
+  schedule:
+    - cron: "3 */5 * * *"
+  workflow_dispatch: {}
+concurrency:
+  group: recorder
+  cancel-in-progress: false
+permissions:
+  contents: write
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - name: Record one shift (~4h45m)
+        run: |
+          mkdir -p capture
+          python3 recorder.py --duration 17100 --db capture/market_data.sqlite
+      - name: Package segment
+        run: |
+          DAY=$(date -u +%F); STAMP=$(date -u +%H%M)
+          mkdir -p "data/$DAY"
+          gzip -c capture/market_data.sqlite > "data/$DAY/segment-$STAMP.sqlite.gz"
+      - name: Commit segment
+        run: |
+          git config user.name "markout-recorder [claude]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data
+          git commit -m "segment $(date -u +%FT%H%MZ)" || { echo "nothing to commit"; exit 0; }
+          for i in 1 2 3; do git pull --rebase && git push && break || sleep 5; done
