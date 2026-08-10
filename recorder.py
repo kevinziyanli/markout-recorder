@@ -234,9 +234,14 @@ class Recorder:
                      m.get("close_time"), m.get("expected_expiration_time") or m.get("expiration_time"),
                      json.dumps({k: m.get(k) for k in ("fee_waiver_expiration_time", "maker_fee", "fee_type") if k in m}) or None,
                      wall, wall))
+                v24 = m.get("volume_24h_fp") or m.get("volume_24h") or m.get("volume_fp")
+                try:
+                    v24 = None if v24 is None else float(v24)
+                except (TypeError, ValueError):
+                    v24 = None
                 self.conn.execute(
                     "INSERT INTO book_events (wall,ticker,yes_bid,yes_ask,yes_bid_size,yes_ask_size,volume_24h,source) VALUES (?,?,?,?,?,?,?,?)",
-                    (wall, t, yb, ya, None, None, m.get("volume_24h"), "sweep"))
+                    (wall, t, yb, ya, None, None, v24, "sweep"))
                 if pregate(yb, ya):
                     new_hot.add(t)
                 n += 1
